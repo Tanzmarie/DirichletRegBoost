@@ -3,7 +3,7 @@
 require(DirichletReg)
 require(gamboostLSS)
 
-source("trivariateDirichlet.R")
+source("families/trivariateDirichlet.R")
 
 set.seed(100)
 
@@ -112,8 +112,12 @@ test = DirichReg(YD ~ x)
 coef(test)
 
 # Boosting via gamboostLSS
-# optimal for non is mstop = 2883
-model1 = glmboostLSS(Y ~ x, families = DirichletTV(alpha1 = NULL, alpha2 = NULL, alpha3 = NULL), control = boost_control(trace = TRUE, mstop = 5000, nu = 0.01), method = 'cyclic')
+y1 = Y[,1]
+y2 = Y[,2]
+y3 = Y[,3]
+
+model1 = gamboostLSS(cbind(y1,y2,y3) ~ x, families = DirichletTV(alpha1 = NULL, alpha2 = NULL, alpha3 = NULL), control = boost_control(trace = TRUE, mstop = 5000, nu = 0.01), method = 'noncyclic')
+
 coef(model1)
 plot(model1, parameter = "alpha2")
 

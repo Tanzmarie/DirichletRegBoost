@@ -1,7 +1,7 @@
 library("DirichletReg")
 require('gamboostLSS')
 
-source("trivariateDirichlet.R")
+source("families/trivariateDirichlet.R")
 
 head(ArcticLake)
 
@@ -37,7 +37,7 @@ y1 = ACL[,1]
 y2 = ACL[,2]
 y3 = ACL[,3]
 
-model1 = glmboostLSS(formula = cbind(y1,y2,y3) ~ depth + I(depth^2), data = ArcticLake, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 10000, nu = 0.1), method = 'noncyclic')
+model1 = gamboostLSS(formula = cbind(y1,y2,y3) ~ depth + I(depth^2), data = ArcticLake, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
 model2 = glmboostLSS(formula = cbind(y1,y2,y3) ~ depth + I(depth^2), data = ArcticLake, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 100000, nu = 0.01), method = 'cyclic')
 
 cv10f = cv(model.weights(model1), type = "kfold")
