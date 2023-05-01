@@ -15,8 +15,8 @@ sim = function(seed,n,p) {
   set.seed(seed)
   
   a1 = c(2.5,-1,3, rep(0,p-3))
-  a2 = c(2,2,-1 ,rep(0,p-3))
-  a3 = c(1.5,-1.5,1 ,rep(0,p-3))
+  a2 = c(0,0,0,2,2,-1 ,rep(0,p-6))
+  a3 = c(0,0,0,0,0,0,1.5,-1.5,1 ,rep(0,p-9))
   
   TrueBeta =  vector('list')
   
@@ -32,8 +32,8 @@ sim = function(seed,n,p) {
   x.train = data.frame(x.train)
   
   a1.train = exp(2.5*x.train[,1] - x.train[,2] + 3*x.train[,3]) 
-  a2.train = exp(2*x.train[,1] + 2*x.train[,2] - x.train[,3])
-  a3.train = exp(1.5*x.train[,1] -  1.5*x.train[,2] + x.train[,3])
+  a2.train = exp(2*x.train[,4] + 2*x.train[,5] - x.train[,6])
+  a3.train = exp(1.5*x.train[,7] -  1.5*x.train[,8] + x.train[,9])
   
   A = cbind(a1.train,a2.train,a3.train)
   
@@ -47,8 +47,8 @@ sim = function(seed,n,p) {
   x.test = data.frame(x.test)
   
   a1.test = exp(2.5*x.test[,1] - x.test[,2] + 3*x.test[,3]) 
-  a2.test = exp(2*x.test[,1] + 2*x.test[,2] - x.test[,3])
-  a3.test = exp(1.5*x.test[,1] -  1.5*x.test[,2] + x.test[,3])
+  a2.test = exp(2*x.test[,4] + 2*x.test[,5] - x.test[,6])
+  a3.test = exp(1.5*x.test[,7] -  1.5*x.test[,8] + x.test[,9])
   
   
   A = cbind(a1.test,a2.test,a3.test)
@@ -59,7 +59,7 @@ sim = function(seed,n,p) {
   
   # - Model
   
-  trivDR = glmboostLSS(y.train ~ ., data = x.train, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 2000, nu = 0.1), method = 'noncyclic')
+  trivDR = glmboostLSS(y.train ~ ., data = x.train, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
   
   cv25 = cv(model.weights(trivDR), type = "kfold")
   cvr = cvrisk(trivDR, folds = cv25, grid = 1:1000)
@@ -100,29 +100,48 @@ sim = function(seed,n,p) {
   false.positive.a3 = vector('list')
   
   
+  # nameVar = names(x.train)[1:p]
+  # trueVar = nameVar[1:3]
+  # falseVar = nameVar[4:p]
+  # 
+  # selectedVar.a1 = names(coef(trivDR$alpha1))[-1]
+  # selectedVar.a2 = names(coef(trivDR$alpha2))[-1]
+  # selectedVar.a3 = names(coef(trivDR$alpha3))[-1]
+  # 
+  # true.positive.a1 = length(which(trueVar %in% names(coef(trivDR$alpha1))))
+  # true.positive.a2 = length(which(trueVar %in% names(coef(trivDR$alpha2))))
+  # true.positive.a3 = length(which(trueVar %in% names(coef(trivDR$alpha3))))
+  # 
+  # false.positive.a1 = length(which(falseVar %in% names(coef(trivDR$alpha1))))
+  # false.positive.a2 = length(which(falseVar %in% names(coef(trivDR$alpha2))))
+  # false.positive.a3 = length(which(falseVar %in% names(coef(trivDR$alpha3))))
+   
+  
   nameVar = names(x.train)[1:p]
   trueVar = nameVar[1:3]
   falseVar = nameVar[4:p]
-  
+
   selectedVar.a1 = names(coef(trivDR$alpha1))[-1]
   selectedVar.a2 = names(coef(trivDR$alpha2))[-1]
   selectedVar.a3 = names(coef(trivDR$alpha3))[-1]
+
+  true.positive.a1 = length(which(nameVar[1:3] %in% names(coef(trivDR$alpha1))))
+  true.positive.a2 = length(which(nameVar[4:6] %in% names(coef(trivDR$alpha2))))
+  true.positive.a3 = length(which(nameVar[7:9] %in% names(coef(trivDR$alpha3))))
+
+  false.positive.a1 = length(which(nameVar[4:p] %in% names(coef(trivDR$alpha1))))
+  false.positive.a2 = length(which(nameVar[c(1:3,7:p)] %in% names(coef(trivDR$alpha2))))
+  false.positive.a3 = length(which(nameVar[c(1:6,10:p)] %in% names(coef(trivDR$alpha3))))
+
   
-  true.positive.a1 = length(which(trueVar %in% names(coef(trivDR$alpha1))))
-  true.positive.a2 = length(which(trueVar %in% names(coef(trivDR$alpha2))))
-  true.positive.a3 = length(which(trueVar %in% names(coef(trivDR$alpha3))))
-  
-  false.positive.a1 = length(which(falseVar %in% names(coef(trivDR$alpha1))))
-  false.positive.a2 = length(which(falseVar %in% names(coef(trivDR$alpha2))))
-  false.positive.a3 = length(which(falseVar %in% names(coef(trivDR$alpha3))))
   
   TPR = vector("list")
   FDR = vector ("list")
   
-  TPR$Overall = sum(true.positive.a1 + true.positive.a2 + true.positive.a3) / (length(trueVar) * 3)
-  TPR$alpha1 = true.positive.a1 / length(trueVar)
-  TPR$alpha2 = true.positive.a2 / length(trueVar)
-  TPR$alpha3 = true.positive.a3 / length(trueVar)
+  TPR$Overall = sum(true.positive.a1 + true.positive.a2 + true.positive.a3) / (length(nameVar[1:3]) * 3)
+  TPR$alpha1 = true.positive.a1 / length(nameVar[1:3])
+  TPR$alpha2 = true.positive.a2 / length(nameVar[4:6])
+  TPR$alpha3 = true.positive.a3 / length(nameVar[7:9])
   
   FDR$Overall = sum(false.positive.a1 + false.positive.a2 + false.positive.a3) / (length(selectedVar.a1) + length(selectedVar.a2) + length(selectedVar.a3))
   FDR$alpha1 = false.positive.a1 / length(selectedVar.a1)
@@ -218,12 +237,14 @@ sim = function(seed,n,p) {
 
 
 n = 1000
-p = 10
-cur = 50
+p = 330
+cur = 10
 
 results = mclapply(1:cur, sim, n = n, p = p)
 
 save(results, file = "test")
+
+load("test")
 
 # Calculating mean TPR and FDR
 
@@ -319,6 +340,7 @@ coef_df$model = rep(names(coeflist), each = nrow(coef_df)/length(coeflist))
 coef_melted = melt(coef_df, id.vars = "model")
 
 TBet = data.frame(results[[1]]$TrueBeta)
+TBet = TBet[1:10,]
 TBet$variable = unique(coef_melted$variable)
 true.df = gather(TBet, model, value, -variable)
 
