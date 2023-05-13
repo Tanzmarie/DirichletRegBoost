@@ -3,7 +3,7 @@ Component-wise gradient boosting algorithm for modeling Dirichlet regression mod
 explanatory variables.
 
 # Example 
-
+```
 require("gamboostLSS")
 require("DirichletReg")
 
@@ -36,3 +36,4 @@ coef(mod[200], off2int = TRUE)
 
 par(mfrow = c(1,3))
 plot(mod)
+```
