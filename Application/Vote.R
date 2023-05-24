@@ -3,6 +3,7 @@
 library("DirichletReg")
 library("tidyverse")
 library("stargazer")
+library("gamboostLSS")
 
 data = read.table("D:/Universität/Master/Masterarbeit/DirichletRegBoost/Application/data_party_replication.tab",header =T, sep = "\t")
 
@@ -80,11 +81,9 @@ datn$Participants = datn$Participants/1000
 
 datn$Protests = datn$Protests/datn$Duration
 
-stargazer(datn[,c(3,8:13)])
-
 rm(df,subing,subing2,i)
 
-############ Some plots
+############ Plotting Proportions
 
 #plotting proportions against protests
 
@@ -137,14 +136,6 @@ for (i in 1:7){
   lines(Xnew$Protests, pred[,i], col = "red", lwd = 2)
 }
 
-# Only the predictions
-
-for (i in 1:7){
-  plot(Xnew$Protests, pred[, i], type = "l",
-       main = "Predicted Proportion of Vote 1 vs Protests",
-       xlab = "Protests", ylab = "Proportion",
-       ylim = c(0, 1))
-}
 
 #All in one plot
 
@@ -163,7 +154,7 @@ for (i in 1:7){
 
 
 # Searching for the best model according to AIC
-variables <- c("Protests", "Unemployment", "Debt", "GDP", "Crisis", "Bailout", "East")
+variables = c("Protests", "Unemployment", "Debt", "GDP", "Crisis", "Bailout", "East")
 
 results = list()
 
@@ -186,7 +177,7 @@ aic_list = sapply(results, function(x) AIC(x))
 #find the minimum
 min_index <- which.min(aic_list)
 
-# extract corresponding model formula
+#extract corresponding model formula
 best_formula <- names(results)[min_index]
 
 #fit the best model according to aic
@@ -194,13 +185,11 @@ mod = DirichReg(eval(as.formula(best_formula)), data = datn)
 
 summary(mod)
 
+# Lets repeat for alternative parametrization
 
-################################# Lets repeat for alternative parametriziation
-
-variables <- c("wevents", "unemployment", "debt", "gdp", "crisis", "bailout", "east")
+variables = c("Protests", "Unemployment", "Debt", "GDP", "Crisis", "Bailout", "East")
 
 results = list()
-
 
 for (i in 1:length(variables)){
   combinations = combn(variables, i, simplify = FALSE)
@@ -229,15 +218,58 @@ summary(mod)
 
 
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
-#Boosting with the common parametriziation
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# 0:2: Boosting with the common parametriziation
+
+
+set.seed(100)
 
 source("families/septivariateDirichlet.R")
 
-boostmod = glmboostLSS(Vote ~ Protests + Unemployment + Debt + GDP + Crisis + Bailout + East, data = datn,  families = DirichletSV(alpha1 = NULL, alpha2 = NULL, alpha3 = NULL, alpha4 = NULL, alpha5 = NULL, alpha6 = NULL, alpha7 = NULL), control = boost_control(trace = TRUE, mstop = 500, nu  = 0.1), method = 'noncyclic')
+boostmod = glmboostLSS(Vote ~ Protests + Unemployment + Debt + GDP + Crisis + Bailout + East, data = datn,  families = DirichletSV(alpha1 = NULL, alpha2 = NULL, alpha3 = NULL, alpha4 = NULL, alpha5 = NULL, alpha6 = NULL, alpha7 = NULL), control = boost_control(trace = TRUE, mstop = 1000, nu  = 0.1), method = 'noncyclic')
+
+cv10 = cv(model.weights(boostmod), type =  "kfold")
+cvr = cvrisk(boostmod, folds = cv10, grid = 1:1000)
+plot(cvr)
+StopIT = mstop(cvr)
+
+boostmod = glmboostLSS(Vote ~ Protests + Unemployment + Debt + GDP + Crisis + Bailout + East, data = datn,  families = DirichletSV(alpha1 = NULL, alpha2 = NULL, alpha3 = NULL, alpha4 = NULL, alpha5 = NULL, alpha6 = NULL, alpha7 = NULL), control = boost_control(trace = TRUE, mstop = StopIT, nu  = 0.1), method = 'noncyclic')
 coef(boostmod, off2int = TRUE)
+
+par(mfrow = c(2,4), mar = c(4, 4, 2, 5))
+
 plot(boostmod)
 
+# Plotting predictions for the Boosting approach
 
+newX = data.frame(Protests = seq(min(datn$Protests), max(datn$Protests), length.out = 117),
+                  Unemployment = seq(min(datn$Unemployment), max(datn$Unemployment), length.out = 117),
+                  Debt = seq(min(datn$Debt), max(datn$Debt), length.out = 117),
+                  GDP = seq(min(datn$GDP), max(datn$GDP), length.out = 117),
+                  Crisis = sample(c(0,1), size = 117, replace = TRUE),
+                  Bailout = sample(c(0,1), size = 117, replace = TRUE),
+                  East = sample(c(0,1), size = 117, replace = TRUE))
+
+trueProtest = newX[,1]
+
+pred.a1 = predict(boostmod, newX, parameter = "alpha1", which = 2, type = "response")
+pred.a1 = rep(pred.a1, times = 117)
+pred.a2 = predict(boostmod, newX, parameter = "alpha2", which = 2, type = "response")
+pred.a3 = predict(boostmod, newX, parameter = "alpha3", which = 2, type = "response")
+pred.a4 = predict(boostmod, newX, parameter = "alpha4", which = 2, type = "response")
+pred.a5 = predict(boostmod, newX, parameter = "alpha5", which = 2, type = "response")
+pred.a6 = predict(boostmod, newX, parameter = "alpha6", which = 2, type = "response")
+pred.a6 = rep(pred.a1, times = 117)
+pred.a7 = predict(boostmod, newX, parameter = "alpha7", which = 2, type = "response")
+
+pred.A = cbind(pred.a1,pred.a2, pred.a3, pred.a4, pred.a5, pred.a6, pred.a7)
+pred.mu = pred.A / rowSums(pred.A)
+pred.mu
+
+par(mfrow = c(2,4))
+for(i in 1:7){
+  plot(x = trueProtest, y = pred.mu[,i], ylim = c(0,0.3), type = "l", ylab = "Proportion", xlab = "Protests", main = i)
+}
 
 

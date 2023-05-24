@@ -236,15 +236,13 @@ sim = function(seed,n,p) {
 }
 
 
-n = 1000
-p = 330
-cur = 10
+n = 150
+p = 49
+cur = 100
 
 results = mclapply(1:cur, sim, n = n, p = p)
 
-save(results, file = "test")
-
-load("test")
+save(results, file = "results2")
 
 # Calculating mean TPR and FDR
 

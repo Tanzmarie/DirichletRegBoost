@@ -9,36 +9,45 @@ library("reshape2")
 
 source("families/trivariateDirichlet.R")
 
-sim = function(seed, n, p){
+sim = function(seed, n.train, p){
   
-  set.seed(seed)
   
   ###### data generation
   # - training data
   
+  n = n.train + 1000
+  weight.mstop = c(rep(1, times = n.train),rep(0, times = 1000))
   
   x.train = matrix(rnorm(p * n, 0,1), n)
   x.train = data.frame(x.train)
   
   a1.train = exp(x.train[,1]**2) 
-  a2.train = exp(sin(2*x.train[,2])/0.5)
-  a3.train = exp(3*cos(2*x.train[,3]))
+  a2.train = exp(2*tanh(3*x.train[,2]))
+  a3.train = exp(cos(x.train[,3]))
   
   
   A = cbind(a1.train,a2.train,a3.train)
   
   y.train = rdirichlet(nrow(A),A)
   
+  
   # - Model
   
-  x <- paste(c(paste("bbs(X", 1:p, ")", sep = "")), collapse = "+")
-  form <- as.formula((paste( "y.train ~",  x)))
+  x = paste(c(paste("bbs(X", 1:p, ")", sep = "")), collapse = "+")
+  form = as.formula((paste("y.train ~",  x)))
   
-  trivDRNON = gamboostLSS(form, data = x.train, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
+  trivDRNON = gamboostLSS(form, data = x.train, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 1000, risk = "oobag", nu = 0.1), weights = weight.mstop, method = 'noncyclic')
+  #trivDRNON = gamboostLSS(form, data = x.train, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
   
-  cv25 = cv(model.weights(trivDRNON), type = "kfold")
-  cvr = cvrisk(trivDRNON, folds = cv25, grid = 1:1000)
-  StopIT = mstop(cvr)
+  
+  # cv25 = cv(model.weights(trivDRNON), type = "kfold")
+  # cvr = cvrisk(trivDRNON, folds = cv25, grid = 1:1000)
+  # StopIT = mstop(cvr)
+  
+  StopIT = which.min(risk(trivDRNON,merge = T))
+  
+  x.train = x.train[weight.mstop == 1, ]
+  y.train = y.train[weight.mstop == 1, ]
   
   trivDRNON = gamboostLSS(form, data = x.train, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = StopIT, nu = 0.1), method = 'noncyclic')
   
@@ -87,9 +96,9 @@ sim = function(seed, n, p){
   
   newX = matrix(rep(seq(from = -3, to = 3,length.out = 500),times = p),nrow =500)
   
-  plotDR$newX_alpha1 = predict(trivDRNON, data.frame(newX), parameter = 'alpha1',which = 1, type = 'link' )
-  plotDR$newX_alpha2 = predict(trivDRNON, data.frame(newX), parameter = 'alpha2',which = 2, type = 'link' )
-  plotDR$newX_alpha3 = predict(trivDRNON, data.frame(newX), parameter = 'alpha3',which = 3, type = 'link' )
+  plotDR$newX_alpha1 = predict(trivDRNON, data.frame(newX), parameter = 'alpha1',which = 1, type = 'link')
+  plotDR$newX_alpha2 = predict(trivDRNON, data.frame(newX), parameter = 'alpha2',which = 2, type = 'link')
+  plotDR$newX_alpha3 = predict(trivDRNON, data.frame(newX), parameter = 'alpha3',which = 3, type = 'link')
   
   n.ges = n
   
@@ -98,11 +107,13 @@ sim = function(seed, n, p){
 }
 
 
-n = 100
+n.train = 1000
 p = 10
-cur = 10
+cur = 100
 
-results = mclapply(1:cur, sim, n = n, p = p)
+results = mclapply(1:cur, sim, n.train = n.train, p = p)
+
+save(results, file = "results6")
 
 # Calculating mean TPR and FDR
 
@@ -129,8 +140,8 @@ colMeans(FP)
 # Effect Plotting
 
 df.a1 = data.frame(x = results[[1]]$newdata[,1],trueVal = results[[1]]$newdata[,1]**2)
-df.a2 = data.frame(x = results[[1]]$newdata[,2],trueVal = sin(2*results[[1]]$newdata[,2])/0.5)
-df.a3 = data.frame(x = results[[1]]$newdata[,3],trueVal = 3*cos(2*results[[1]]$newdata[,3]))
+df.a2 = data.frame(x = results[[1]]$newdata[,2],trueVal = 2*tanh(3*results[[1]]$newdata[,2]))
+df.a3 = data.frame(x = results[[1]]$newdata[,3],trueVal = cos(results[[1]]$newdata[,3]))
 
 for (i in 1:cur) {
 df.a1 = cbind(df.a1,results[[i]]$plt$newX_alpha1)
@@ -148,10 +159,10 @@ df.long = df.combined %>% pivot_longer(cols = starts_with("y"),names_to = "var",
 
 
 ggplot(df.long, aes(x, value)) +
-  geom_line(aes(group = var), color = "black") +
+  geom_line(aes(group = var), color = "darkgrey") +
   geom_line(data = unique(df.long[,1:3]),
             aes(x = x, y = trueVal), color = "red", linewidth = 2, linetype = "dotted") +
   facet_grid(~ alpha, scales = "free_x") +
-  labs(x = "X axis label", y = "Y axis label", title = "Title") +
+  labs(x = "values", y = "f(.)", title = "Graphs of nonlinear effects") +
   theme_light()
 
