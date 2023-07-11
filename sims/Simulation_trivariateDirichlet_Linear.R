@@ -138,12 +138,12 @@ sim = function(seed,n,p) {
   TPR = vector("list")
   FDR = vector ("list")
   
-  TPR$Overall = sum(true.positive.a1 + true.positive.a2 + true.positive.a3) / (length(nameVar[1:3]) * 3)
+ 
   TPR$alpha1 = true.positive.a1 / length(nameVar[1:3])
   TPR$alpha2 = true.positive.a2 / length(nameVar[4:6])
   TPR$alpha3 = true.positive.a3 / length(nameVar[7:9])
   
-  FDR$Overall = sum(false.positive.a1 + false.positive.a2 + false.positive.a3) / (length(selectedVar.a1) + length(selectedVar.a2) + length(selectedVar.a3))
+  
   FDR$alpha1 = false.positive.a1 / length(selectedVar.a1)
   FDR$alpha2 = false.positive.a2 / length(selectedVar.a2)
   FDR$alpha3 = false.positive.a3 / length(selectedVar.a3)
