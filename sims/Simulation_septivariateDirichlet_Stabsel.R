@@ -91,7 +91,7 @@ rm(s)
 results$p150q50 = df
 
 save(results, file = "BalancedStabsRes")
-load("UnbalancedStabsRes")
+load("BalancedStabsRes")
 
 ############# PLOTTING ##################
 

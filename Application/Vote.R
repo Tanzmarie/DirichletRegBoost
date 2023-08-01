@@ -247,19 +247,19 @@ trueUnemployment = newX[,2]
 trueGDP = newX[,4]
 trueEast = newX[,7]
 
-pred.a1 = predict(boostmod, newX, parameter = "alpha1", which = 5, type = "response")
+pred.a1 = predict(boostmod, newX, parameter = "alpha1", which = 4, type = "response")
 pred.a1 = rep(pred.a1, times = 117)
-pred.a2 = predict(boostmod, newX, parameter = "alpha2", which = 5, type = "response")
+pred.a2 = predict(boostmod, newX, parameter = "alpha2", which = 4, type = "response")
 pred.a2 = rep(pred.a1, times = 117)
-pred.a3 = predict(boostmod, newX, parameter = "alpha3", which = 5, type = "response")
+pred.a3 = predict(boostmod, newX, parameter = "alpha3", which = 4, type = "response")
 pred.a3 = rep(pred.a1, times = 117)
-pred.a4 = predict(boostmod, newX, parameter = "alpha4", which = 5, type = "response")
+pred.a4 = predict(boostmod, newX, parameter = "alpha4", which = 4, type = "response")
 pred.a4 = rep(pred.a1, times = 117)
-pred.a5 = predict(boostmod, newX, parameter = "alpha5", which = 5, type = "response")
+pred.a5 = predict(boostmod, newX, parameter = "alpha5", which = 4, type = "response")
 pred.a5 = rep(pred.a1, times = 117)
-pred.a6 = predict(boostmod, newX, parameter = "alpha6", which = 5, type = "response")
+pred.a6 = predict(boostmod, newX, parameter = "alpha6", which = 4, type = "response")
 pred.a6 = rep(pred.a1, times = 117)
-pred.a7 = predict(boostmod, newX, parameter = "alpha7", which = 5, type = "response")
+pred.a7 = predict(boostmod, newX, parameter = "alpha7", which = 4, type = "response")
 pred.a7 = rep(pred.a1, times = 117)
 
 pred.A = cbind(pred.a1,pred.a2, pred.a3, pred.a4, pred.a5, pred.a6, pred.a7)
@@ -268,7 +268,7 @@ pred.mu
 
 par(mfrow = c(2,4))
 for(i in 1:7){
-  plot(x = trueGDP, y = pred.mu[,i], ylim = c(0,0.3), type = "l", ylab = "Proportion", xlab = "Unemployment", main = i)
+  plot(x = trueDebt, y = pred.mu[,i], ylim = c(0,0.3), type = "l", ylab = "Proportion", xlab = "Debt change in percent", main = i)
 }
 
 

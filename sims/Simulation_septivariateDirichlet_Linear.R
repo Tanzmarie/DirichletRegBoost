@@ -257,7 +257,7 @@ results = mclapply(1:cur, sim, n = n, p = p)
 
 save(results, file = "res5")
 
-load("res5")
+load("res4")
 
 # Calculating mean TPR and FDR
 
@@ -415,12 +415,16 @@ TBet = data.frame(results[[1]]$TrueBeta)
 TBet = TBet[1:10,]
 TBet$variable = unique(coef_melted$variable)
 true.df = gather(TBet, model, value, -variable)
+
 ggplot(coef_melted, aes(x = variable, y = value)) + 
   geom_boxplot() +
   #geom_point(data = true.df, aes(x = variable, y = value), color = "red", size = 2.5) +
   geom_boxplot(data = true.df, aes(x = variable, y = value), color = "red") +
-  facet_grid(rows = vars(model)) +
-  theme_light()
+  facet_grid(rows = vars(model), scales = "free_y") +
+  ylab("") +
+  theme_light() +
+  theme(strip.text = element_text(color = "black"))
+
 
 # Predictive Performance
 

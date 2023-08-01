@@ -113,7 +113,7 @@ cur = 100
 
 results = mclapply(1:cur, sim, n.train = n.train, p = p)
 
-save(results, file = "results6")
+save(results, file = "NONLIN2")
 
 # Calculating mean TPR and FDR
 
@@ -159,10 +159,11 @@ df.long = df.combined %>% pivot_longer(cols = starts_with("y"),names_to = "var",
 
 
 ggplot(df.long, aes(x, value)) +
-  geom_line(aes(group = var), color = "darkgrey") +
+  geom_line(aes(group = var), color = "black", linewidth = 1, alpha = 0.1) +
   geom_line(data = unique(df.long[,1:3]),
             aes(x = x, y = trueVal), color = "red", linewidth = 2, linetype = "dotted") +
   facet_grid(~ alpha, scales = "free_x") +
-  labs(x = "values", y = "f(.)", title = "Graphs of nonlinear effects") +
-  theme_light()
+  labs(x = "x", y = "f(x)", title = "") +
+  theme_light() +
+  theme(strip.text = element_text(color = "black"))
 
