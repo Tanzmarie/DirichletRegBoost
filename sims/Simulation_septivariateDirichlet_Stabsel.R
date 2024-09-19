@@ -8,8 +8,7 @@ library("forcats")
 
 source("families/septivariateDirichlet.R")
 
-seed = 10 
-set.seed(seed)
+set.seed(10)
 
 p = 50
 n = 150

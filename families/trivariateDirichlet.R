@@ -167,4 +167,3 @@ DirichletTV = function(alpha1 = NULL, alpha2 = NULL, alpha3 = NULL) {
 }
 
 
-

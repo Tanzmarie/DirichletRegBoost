@@ -5,9 +5,10 @@ library("scoringRules")
 library("DirichletReg")
 library("tidyverse")
 library("reshape2")
+library("vroom")
 #########################################
 
-source("families/septivariateDirichlet.R")
+source("families/Dirichlet.R")
 
 
 sim = function(seed,n,p) {
@@ -25,13 +26,13 @@ sim = function(seed,n,p) {
   
   TrueBeta =  vector('list')
   
-  TrueBeta$alpha1 = a1
-  TrueBeta$alpha2 = a2
-  TrueBeta$alpha3 = a3
-  TrueBeta$alpha4 = a4
-  TrueBeta$alpha5 = a5
-  TrueBeta$alpha6 = a6
-  TrueBeta$alpha7 = a7
+  TrueBeta$a1 = a1
+  TrueBeta$a2 = a2
+  TrueBeta$a3 = a3
+  TrueBeta$a4 = a4
+  TrueBeta$a5 = a5
+  TrueBeta$a6 = a6
+  TrueBeta$a7 = a7
   
   ###### data generation
   # - training data
@@ -74,36 +75,36 @@ sim = function(seed,n,p) {
   
   # - Model
   
-  septDR = glmboostLSS(y.train ~ ., data = x.train, families = DirichletSV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
+  septDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 7), control = boost_control(trace = TRUE, mstop = 500, nu = 0.1), method = 'noncyclic')
   
-  cv25 = cv(model.weights(septDR), type = "subsampling")
-  cvr = cvrisk(septDR, folds = cv25, grid = 1:500)
+  cv25 = cv(model.weights(septDR), type = "kfold")
+  cvr = cvrisk(septDR, folds = cv25, grid = 1:750)
   
   StopIT = mstop(cvr)
   
   rm(septDR)
   
-  septDR = glmboostLSS(y.train ~ ., data = x.train, families = DirichletSV(), control = boost_control(trace = TRUE, mstop = StopIT, nu = 0.1), method = 'noncyclic')
+  septDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 7), control = boost_control(trace = TRUE, mstop = StopIT, nu = 0.1), method = 'noncyclic')
   
   mstop.septDR <-  vector('list')
   mstop.septDR$mstop <- StopIT
-  mstop.septDR$a1 <- septDR$alpha1$mstop()
-  mstop.septDR$a2 <- septDR$alpha2$mstop()
-  mstop.septDR$a3 <- septDR$alpha3$mstop()
-  mstop.septDR$a4 <- septDR$alpha4$mstop()
-  mstop.septDR$a5 <- septDR$alpha5$mstop()
-  mstop.septDR$a6 <- septDR$alpha6$mstop()
-  mstop.septDR$a7 <- septDR$alpha7$mstop()
+  mstop.septDR$a1 <- septDR$a1$mstop()
+  mstop.septDR$a2 <- septDR$a2$mstop()
+  mstop.septDR$a3 <- septDR$a3$mstop()
+  mstop.septDR$a4 <- septDR$a4$mstop()
+  mstop.septDR$a5 <- septDR$a5$mstop()
+  mstop.septDR$a6 <- septDR$a6$mstop()
+  mstop.septDR$a7 <- septDR$a7$mstop()
   
   coef.septDR = coef(septDR, which = "")
   coef.septDR_ow = coef(septDR)
   
   # # - Dirichlet Regression
-  # 
-  # ydr = DR_data(y.train)
-  # DR = DirichReg(ydr ~ ., data = x.train)
-  # 
-  
+
+  ydr = DR_data(y.train)
+  DR = DirichReg(ydr ~ ., data = x.train)
+
+
   # - Variable Selection
   
   selectedVar.a1 = vector("list")
@@ -119,187 +120,228 @@ sim = function(seed,n,p) {
   false.positive.a3 = vector('list')
   
   
-  # nameVar = names(x.train)[1:p]
-  # trueVar = nameVar[1:3]
-  # falseVar = nameVar[4:p]
-  # 
-  # selectedVar.a1 = names(coef(septDR$alpha1))[-1]
-  # selectedVar.a2 = names(coef(septDR$alpha2))[-1]
-  # selectedVar.a3 = names(coef(septDR$alpha3))[-1]
-  # 
-  # true.positive.a1 = length(which(trueVar %in% names(coef(septDR$alpha1))))
-  # true.positive.a2 = length(which(trueVar %in% names(coef(septDR$alpha2))))
-  # true.positive.a3 = length(which(trueVar %in% names(coef(septDR$alpha3))))
-  # 
-  # false.positive.a1 = length(which(falseVar %in% names(coef(septDR$alpha1))))
-  # false.positive.a2 = length(which(falseVar %in% names(coef(septDR$alpha2))))
-  # false.positive.a3 = length(which(falseVar %in% names(coef(septDR$alpha3))))
-  
-  
   nameVar = names(x.train)[1:p]
   trueVar = nameVar[1:3]
   falseVar = nameVar[4:p]
   
-  selectedVar.a1 = names(coef(septDR$alpha1))[-1]
-  selectedVar.a2 = names(coef(septDR$alpha2))[-1]
-  selectedVar.a3 = names(coef(septDR$alpha3))[-1]
-  selectedVar.a4 = names(coef(septDR$alpha4))[-1]
-  selectedVar.a5 = names(coef(septDR$alpha5))[-1]
-  selectedVar.a6 = names(coef(septDR$alpha6))[-1]
-  selectedVar.a7 = names(coef(septDR$alpha7))[-1]
+  selectedVar.a1 = names(coef(septDR$a1))[-1]
+  selectedVar.a2 = names(coef(septDR$a2))[-1]
+  selectedVar.a3 = names(coef(septDR$a3))[-1]
+  selectedVar.a4 = names(coef(septDR$a4))[-1]
+  selectedVar.a5 = names(coef(septDR$a5))[-1]
+  selectedVar.a6 = names(coef(septDR$a6))[-1]
+  selectedVar.a7 = names(coef(septDR$a7))[-1]
   
-  true.positive.a1 = length(which(trueVar %in% names(coef(septDR$alpha1))))
-  true.positive.a2 = length(which(trueVar %in% names(coef(septDR$alpha2))))
-  true.positive.a3 = length(which(trueVar %in% names(coef(septDR$alpha3))))
-  true.positive.a4 = length(which(trueVar %in% names(coef(septDR$alpha4))))
-  true.positive.a5 = length(which(trueVar %in% names(coef(septDR$alpha5))))
-  true.positive.a6 = length(which(trueVar %in% names(coef(septDR$alpha6))))
-  true.positive.a7 = length(which(trueVar %in% names(coef(septDR$alpha7))))
+  true.positive.a1 = length(which(trueVar %in% names(coef(septDR$a1))))
+  true.positive.a2 = length(which(trueVar %in% names(coef(septDR$a2))))
+  true.positive.a3 = length(which(trueVar %in% names(coef(septDR$a3))))
+  true.positive.a4 = length(which(trueVar %in% names(coef(septDR$a4))))
+  true.positive.a5 = length(which(trueVar %in% names(coef(septDR$a5))))
+  true.positive.a6 = length(which(trueVar %in% names(coef(septDR$a6))))
+  true.positive.a7 = length(which(trueVar %in% names(coef(septDR$a7))))
   
-  false.positive.a1 = length(which(falseVar %in% names(coef(septDR$alpha1))))
-  false.positive.a2 = length(which(falseVar %in% names(coef(septDR$alpha2))))
-  false.positive.a3 = length(which(falseVar %in% names(coef(septDR$alpha3))))
-  false.positive.a4 = length(which(falseVar %in% names(coef(septDR$alpha4))))
-  false.positive.a5 = length(which(falseVar %in% names(coef(septDR$alpha5))))
-  false.positive.a6 = length(which(falseVar %in% names(coef(septDR$alpha6))))
-  false.positive.a7 = length(which(falseVar %in% names(coef(septDR$alpha7))))
+  false.positive.a1 = length(which(falseVar %in% names(coef(septDR$a1))))
+  false.positive.a2 = length(which(falseVar %in% names(coef(septDR$a2))))
+  false.positive.a3 = length(which(falseVar %in% names(coef(septDR$a3))))
+  false.positive.a4 = length(which(falseVar %in% names(coef(septDR$a4))))
+  false.positive.a5 = length(which(falseVar %in% names(coef(septDR$a5))))
+  false.positive.a6 = length(which(falseVar %in% names(coef(septDR$a6))))
+  false.positive.a7 = length(which(falseVar %in% names(coef(septDR$a7))))
   
   
   TPR = vector("list")
-  FDR = vector ("list")
+  TNR = vector("list")
+  FDR = vector("list")
+  PPV = vector("list")
+  NPV = vector("list")
   
-  TPR$alpha1 = true.positive.a1 / length(trueVar)
-  TPR$alpha2 = true.positive.a2 / length(trueVar)
-  TPR$alpha3 = true.positive.a3 / length(trueVar)
-  TPR$alpha4 = true.positive.a4 / length(trueVar)
-  TPR$alpha5 = true.positive.a5 / length(trueVar)
-  TPR$alpha6 = true.positive.a6 / length(trueVar)
-  TPR$alpha7 = true.positive.a7 / length(trueVar)
   
+  TPR$a1 = true.positive.a1 / length(trueVar)
+  TPR$a2 = true.positive.a2 / length(trueVar)
+  TPR$a3 = true.positive.a3 / length(trueVar)
+  TPR$a4 = true.positive.a4 / length(trueVar)
+  TPR$a5 = true.positive.a5 / length(trueVar)
+  TPR$a6 = true.positive.a6 / length(trueVar)
+  TPR$a7 = true.positive.a7 / length(trueVar)
+  
+  TNR$a1 = 1 - (false.positive.a1 / length(falseVar))
+  TNR$a2 = 1 - (false.positive.a2 / length(falseVar))
+  TNR$a3 = 1 - (false.positive.a3 / length(falseVar))
+  TNR$a4 = 1 - (false.positive.a4 / length(falseVar))
+  TNR$a5 = 1 - (false.positive.a5 / length(falseVar))
+  TNR$a6 = 1 - (false.positive.a6 / length(falseVar))
+  TNR$a7 = 1 - (false.positive.a7 / length(falseVar))
 
-  FDR$alpha1 = false.positive.a1 / length(selectedVar.a1)
-  FDR$alpha2 = false.positive.a2 / length(selectedVar.a2)
-  FDR$alpha3 = false.positive.a3 / length(selectedVar.a3)
-  FDR$alpha4 = false.positive.a4 / length(selectedVar.a4)
-  FDR$alpha5 = false.positive.a5 / length(selectedVar.a5)
-  FDR$alpha6 = false.positive.a6 / length(selectedVar.a6)
-  FDR$alpha7 = false.positive.a7 / length(selectedVar.a7)
+  FDR$a1 = false.positive.a1 / length(selectedVar.a1)
+  FDR$a2 = false.positive.a2 / length(selectedVar.a2)
+  FDR$a3 = false.positive.a3 / length(selectedVar.a3)
+  FDR$a4 = false.positive.a4 / length(selectedVar.a4)
+  FDR$a5 = false.positive.a5 / length(selectedVar.a5)
+  FDR$a6 = false.positive.a6 / length(selectedVar.a6)
+  FDR$a7 = false.positive.a7 / length(selectedVar.a7)
   
-  # # - Predictive Performance
-  # 
-  # pred.a1 = predict(septDR$alpha1, newdata = x.test, type = "response")
-  # pred.a2 = predict(septDR$alpha2, newdata = x.test, type = "response")
-  # pred.a3 = predict(septDR$alpha3, newdata = x.test, type = "response")
-  # pred.a4 = predict(septDR$alpha4, newdata = x.test, type = "response")
-  # pred.a5 = predict(septDR$alpha5, newdata = x.test, type = "response")
-  # pred.a6 = predict(septDR$alpha6, newdata = x.test, type = "response")
-  # pred.a7 = predict(septDR$alpha7, newdata = x.test, type = "response")
-  # pred.A = cbind(pred.a1, pred.a2, pred.a3, pred.a4, pred.a5, pred.a6, pred.a7)
-  # pred.mu = pred.A / rowSums(pred.A)
-  # 
-  # pred.DR = predict(DR, newdata = x.test, mu = TRUE)
-  # 
-  # # MSEP
-  # 
-  # MSEPB = vector("list")
-  # MSEPDR = vector("list")
-  # 
-  # MSEPB$alpha1 = mean((pred.mu[,1] - y.test[,1])**2)
-  # MSEPB$alpha2 = mean((pred.mu[,2] - y.test[,2])**2)
-  # MSEPB$alpha3 = mean((pred.mu[,3] - y.test[,3])**2)
-  # MSEPB$alpha4 = mean((pred.mu[,4] - y.test[,4])**2)
-  # MSEPB$alpha5 = mean((pred.mu[,5] - y.test[,5])**2)
-  # MSEPB$alpha6 = mean((pred.mu[,6] - y.test[,6])**2)
-  # MSEPB$alpha7 = mean((pred.mu[,7] - y.test[,7])**2)
-  # 
-  # MSEPDR$alpha1 = mean((pred.DR[,1] - y.test[,1])**2)
-  # MSEPDR$alpha2 = mean((pred.DR[,2] - y.test[,2])**2)
-  # MSEPDR$alpha3 = mean((pred.DR[,3] - y.test[,3])**2)
-  # MSEPDR$alpha4 = mean((pred.DR[,4] - y.test[,4])**2)
-  # MSEPDR$alpha5 = mean((pred.DR[,5] - y.test[,5])**2)
-  # MSEPDR$alpha6 = mean((pred.DR[,6] - y.test[,6])**2)
-  # MSEPDR$alpha7 = mean((pred.DR[,7] - y.test[,7])**2)
-  # 
-  # # NLL
-  # 
-  # pred.DR = predict(DR, newdata = x.test, mu = FALSE, alpha = TRUE)
-  # 
-  # NLL = vector("list")
-  # 
-  # loss = function(alpha1, alpha2, alpha3, alpha4, alpha5, alpha6, alpha7, y) {
-  #   y7 = y[,7]
-  #   y6 = y[,6]
-  #   y5 = y[,5]
-  #   y4 = y[,4]
-  #   y3 = y[,3]
-  #   y2 = y[,2]
-  #   y1 = y[,1]
-  #   
-  #   - (lgamma(alpha1 + alpha2 + alpha3 + alpha4 + alpha5 + alpha6 + alpha7) - (lgamma(alpha1) + lgamma(alpha2) + lgamma(alpha3) + lgamma(alpha4) + lgamma(alpha5) + lgamma(alpha6) + lgamma(alpha7))
-  #      + ((alpha1 - 1) * log(y1) + (alpha2 - 1) * log(y2) + (alpha3 - 1) * log(y3) + (alpha4 - 1) * log(y4) + (alpha5 - 1) * log(y5) + (alpha6 - 1) * log(y6) + (alpha7 - 1) * log(y7)))
-  #   
-  # }
-  # 
-  # NLL$Boosting = sum(loss(alpha1 = pred.a1, alpha2 = pred.a2, alpha3 = pred.a3, alpha4 = pred.a4, alpha5 = pred.a5, alpha6 = pred.a6, alpha7 = pred.a7, y = y.test))
-  # NLL$DirichReg = sum(loss(alpha1 = pred.DR[,1], alpha2 = pred.DR[,2], alpha3 = pred.DR[,3], alpha4 = pred.DR[,4], alpha5 = pred.DR[,5], alpha6 = pred.DR[,6], alpha7 = pred.DR[,7], y = y.test))
-  # 
+  PPV$a1 = 1 - (false.positive.a1 / length(selectedVar.a1))
+  PPV$a2 = 1 - (false.positive.a2 / length(selectedVar.a2))
+  PPV$a3 = 1 - (false.positive.a3 / length(selectedVar.a3))
+  PPV$a4 = 1 - (false.positive.a4 / length(selectedVar.a4))
+  PPV$a5 = 1 - (false.positive.a5 / length(selectedVar.a5))
+  PPV$a6 = 1 - (false.positive.a6 / length(selectedVar.a6))
+  PPV$a7 = 1 - (false.positive.a7 / length(selectedVar.a7))
+  
+  NPV$a1 = ((1 - (false.positive.a1 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a1))
+  NPV$a2 = ((1 - (false.positive.a2 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a2))
+  NPV$a3 = ((1 - (false.positive.a3 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a3))
+  NPV$a4 = ((1 - (false.positive.a4 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a4))
+  NPV$a5 = ((1 - (false.positive.a5 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a5))
+  NPV$a6 = ((1 - (false.positive.a6 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a6))
+  NPV$a7 = ((1 - (false.positive.a7 / length(falseVar))) * length(falseVar)) / (length(nameVar) - length(selectedVar.a7))
+  
+  # - Predictive Performance
+
+  pred.a1 = predict(septDR$a1, newdata = x.test, type = "response")
+  pred.a2 = predict(septDR$a2, newdata = x.test, type = "response")
+  pred.a3 = predict(septDR$a3, newdata = x.test, type = "response")
+  pred.a4 = predict(septDR$a4, newdata = x.test, type = "response")
+  pred.a5 = predict(septDR$a5, newdata = x.test, type = "response")
+  pred.a6 = predict(septDR$a6, newdata = x.test, type = "response")
+  pred.a7 = predict(septDR$a7, newdata = x.test, type = "response")
+  pred.A = cbind(pred.a1, pred.a2, pred.a3, pred.a4, pred.a5, pred.a6, pred.a7)
+  pred.mu = pred.A / rowSums(pred.A)
+
+  pred.DR = predict(DR, newdata = x.test, mu = TRUE)
+
+  # MSEP
+
+  MSEPB = vector("list")
+  MSEPDR = vector("list")
+
+  MSEPB$a1 = mean((pred.mu[,1] - y.test[,1])**2)
+  MSEPB$a2 = mean((pred.mu[,2] - y.test[,2])**2)
+  MSEPB$a3 = mean((pred.mu[,3] - y.test[,3])**2)
+  MSEPB$a4 = mean((pred.mu[,4] - y.test[,4])**2)
+  MSEPB$a5 = mean((pred.mu[,5] - y.test[,5])**2)
+  MSEPB$a6 = mean((pred.mu[,6] - y.test[,6])**2)
+  MSEPB$a7 = mean((pred.mu[,7] - y.test[,7])**2)
+
+  MSEPDR$a1 = mean((pred.DR[,1] - y.test[,1])**2)
+  MSEPDR$a2 = mean((pred.DR[,2] - y.test[,2])**2)
+  MSEPDR$a3 = mean((pred.DR[,3] - y.test[,3])**2)
+  MSEPDR$a4 = mean((pred.DR[,4] - y.test[,4])**2)
+  MSEPDR$a5 = mean((pred.DR[,5] - y.test[,5])**2)
+  MSEPDR$a6 = mean((pred.DR[,6] - y.test[,6])**2)
+  MSEPDR$a7 = mean((pred.DR[,7] - y.test[,7])**2)
+
+  # NLL
+
+  pred.DR = predict(DR, newdata = x.test, mu = FALSE, a = TRUE)
+
+  NLL = vector("list")
+
+  loss = function(a1, a2, a3, a4, a5, a6, a7, y) {
+    y7 = y[,7]
+    y6 = y[,6]
+    y5 = y[,5]
+    y4 = y[,4]
+    y3 = y[,3]
+    y2 = y[,2]
+    y1 = y[,1]
+
+    - (lgamma(a1 + a2 + a3 + a4 + a5 + a6 + a7) - (lgamma(a1) + lgamma(a2) + lgamma(a3) + lgamma(a4) + lgamma(a5) + lgamma(a6) + lgamma(a7))
+       + ((a1 - 1) * log(y1) + (a2 - 1) * log(y2) + (a3 - 1) * log(y3) + (a4 - 1) * log(y4) + (a5 - 1) * log(y5) + (a6 - 1) * log(y6) + (a7 - 1) * log(y7)))
+
+  }
+
+  NLL$Boosting = sum(loss(a1 = pred.a1, a2 = pred.a2, a3 = pred.a3, a4 = pred.a4, a5 = pred.a5, a6 = pred.a6, a7 = pred.a7, y = y.test))
+  NLL$DirichReg = sum(loss(a1 = pred.DR[,1], a2 = pred.DR[,2], a3 = pred.DR[,3], a4 = pred.DR[,4], a5 = pred.DR[,5], a6 = pred.DR[,6], a7 = pred.DR[,7], y = y.test))
+
   
   return(list(TrueBeta = TrueBeta, MStop = mstop.septDR, Coefficients = coef.septDR_ow, Coefficients_plt = coef.septDR,
-              TPR = TPR, FDR = FDR))
+              TPR = TPR, FDR = FDR, TNR = TNR, PPV = PPV, NPV = NPV))
 }
 
 
 n = 150
-p = 300
-cur = 100
+p = 49
+cur = 50
 
 results = mclapply(1:cur, sim, n = n, p = p)
 
-save(results, file = "res5")
+results[[10]]$MStop
 
-load("res4")
+# write(results, file = "septlin")
 
 # Calculating mean TPR and FDR
+FalDis = data.frame(a1 = numeric(),
+                    a2 = numeric(),
+                    a3 = numeric(),
+                    a4 = numeric(),
+                    a5 = numeric(),
+                    a6 = numeric(),
+                    a7 = numeric())
 
-FP = data.frame(alpha1 = numeric(),
-                alpha2 = numeric(),
-                alpha3 = numeric(),
-                alpha4 = numeric(),
-                alpha5 = numeric(),
-                alpha6 = numeric(),
-                alpha7 = numeric())
+TruePos = data.frame(a1 = numeric(),
+                     a2 = numeric(),
+                     a3 = numeric(),
+                     a4 = numeric(),
+                     a5 = numeric(),
+                     a6 = numeric(),
+                     a7 = numeric())
 
-TP = data.frame(alpha1 = numeric(),
-                alpha2 = numeric(),
-                alpha3 = numeric(),
-                alpha4 = numeric(),
-                alpha5 = numeric(),
-                alpha6 = numeric(),
-                alpha7 = numeric())
+TrueNeg = data.frame(a1 = numeric(),
+                     a2 = numeric(),
+                     a3 = numeric(),
+                     a4 = numeric(),
+                     a5 = numeric(),
+                     a6 = numeric(),
+                     a7 = numeric())
+
+PosPred = data.frame(a1 = numeric(),
+                     a2 = numeric(),
+                     a3 = numeric(),
+                     a4 = numeric(),
+                     a5 = numeric(),
+                     a6 = numeric(),
+                     a7 = numeric())
+
+NegPred = data.frame(a1 = numeric(),
+                     a2 = numeric(),
+                     a3 = numeric(),
+                     a4 = numeric(),
+                     a5 = numeric(),
+                     a6 = numeric(),
+                     a7 = numeric())
+
+
 
 for(i in 1:cur){ 
   
-  FP[i,]  = unlist(results[[i]]$FDR)
-  TP[i,]  = unlist(results[[i]]$TPR)
+  FalDis[i,]  = unlist(results[[i]]$FDR)
+  TruePos[i,]  = unlist(results[[i]]$TPR)
+  TrueNeg[i,]  = unlist(results[[i]]$TNR)
+  PosPred [i,]  = unlist(results[[i]]$PPV)
+  NegPred[i,]  = unlist(results[[i]]$NPV)
   
 }
 
-colMeans(TP)
-colMeans(FP)
+colMeans(FalDis)
+colMeans(TruePos)
+colMeans(TrueNeg)
+colMeans(PosPred)
+colMeans(NegPred)
 
 # Plotting FDR and TPR
 
 TP = TP[,-1]
 FP = FP[,-1]
 
-tp <- gather(TP, key = "alpha", value = "TP_value")
-fp <- gather(FP, key = "alpha", value = "FP_value")
+tp <- gather(TP, key = "a", value = "TP_value")
+fp <- gather(FP, key = "a", value = "FP_value")
 
-df <- merge(tp, fp, by = c("alpha"))
+df <- merge(tp, fp, by = c("a"))
 
 ggplot(df, aes(x = FP_value, y = TP_value)) +
   geom_point() +
-  facet_grid(cols = vars(alpha)) +
+  facet_grid(cols = vars(a)) +
   ylim(0,1) +
   xlim(0,1) +
   labs(x = "FDR", y = "TPR") +
@@ -388,23 +430,23 @@ a7 = data.frame(x1 = numeric(),
 
 
 for (i in 1:cur){
-  a1[i,] = results[[i]]$Coefficients_plt$alpha1[-1]
-  a2[i,] = results[[i]]$Coefficients_plt$alpha2[-1]
-  a3[i,] = results[[i]]$Coefficients_plt$alpha3[-1]
-  a4[i,] = results[[i]]$Coefficients_plt$alpha4[-1]
-  a5[i,] = results[[i]]$Coefficients_plt$alpha5[-1]
-  a6[i,] = results[[i]]$Coefficients_plt$alpha6[-1]
-  a7[i,] = results[[i]]$Coefficients_plt$alpha7[-1]
+  a1[i,] = results[[i]]$Coefficients_plt$a1[-1]
+  a2[i,] = results[[i]]$Coefficients_plt$a2[-1]
+  a3[i,] = results[[i]]$Coefficients_plt$a3[-1]
+  a4[i,] = results[[i]]$Coefficients_plt$a4[-1]
+  a5[i,] = results[[i]]$Coefficients_plt$a5[-1]
+  a6[i,] = results[[i]]$Coefficients_plt$a6[-1]
+  a7[i,] = results[[i]]$Coefficients_plt$a7[-1]
 }
 
 coeflist = list()
-coeflist$alpha1 = a1
-coeflist$alpha2 = a2
-coeflist$alpha3 = a3
-coeflist$alpha4 = a4
-coeflist$alpha5 = a5
-coeflist$alpha6 = a6
-coeflist$alpha7 = a7
+coeflist$a1 = a1
+coeflist$a2 = a2
+coeflist$a3 = a3
+coeflist$a4 = a4
+coeflist$a5 = a5
+coeflist$a6 = a6
+coeflist$a7 = a7
 
 coef_df <- do.call(rbind, lapply(coeflist, as.data.frame))
 
@@ -436,8 +478,8 @@ for (i in 1:cur) {
 
 colMeans(NLL)
 
-MSEPBoost = data.frame(alpha1 = numeric(),alpha2 = numeric(),alpha3 = numeric(), alpha4 = numeric(), alpha5 = numeric(), alpha6 = numeric(), alpha7 = numeric())
-MSEPDirig = data.frame(alpha1 = numeric(),alpha2 = numeric(),alpha3 = numeric(), alpha4 = numeric(), alpha5 = numeric(), alpha6 = numeric(), alpha7 = numeric())
+MSEPBoost = data.frame(a1 = numeric(),a2 = numeric(),a3 = numeric(), a4 = numeric(), a5 = numeric(), a6 = numeric(), a7 = numeric())
+MSEPDirig = data.frame(a1 = numeric(),a2 = numeric(),a3 = numeric(), a4 = numeric(), a5 = numeric(), a6 = numeric(), a7 = numeric())
 
 for (i in 1:cur) {
   MSEPBoost[i,] = unlist(results[[i]]$MSEPB)
