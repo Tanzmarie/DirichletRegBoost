@@ -7,7 +7,7 @@ explanatory variables.
 require("gamboostLSS")
 require("DirichletReg")
 
-source("families/trivariateDirichlet.R")
+source("families/Dirichlet.R")
 
 set.seed(1)
 
@@ -30,7 +30,7 @@ colnames(y) = c("y1","y2","y3")
 
 # --- model
 
-mod = glmboostLSS(y ~ ., data = x, families = DirichletTV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
+mod = glmboostLSS(y ~ ., data = x, families = Dirichlet(K=3), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
 
 coef(mod[200], off2int = TRUE)
 

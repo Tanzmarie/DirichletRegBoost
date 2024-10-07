@@ -10,7 +10,6 @@ library("Cairo")
 
 source("families/Dirichlet.R")
 
-
 sim = function(seed,n,p) {
   
   set.seed(seed)
@@ -60,9 +59,9 @@ sim = function(seed,n,p) {
   
   # - Model
   
-  trivDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 3), control = boost_control(trace = TRUE, mstop = 500, nu = 0.1), method = 'noncyclic')
+  trivDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 3), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
   
-  cvr = cvrisk(trivDR, folds = cv(model.weights(trivDR), type = "kfold"), grid = 1:500)
+  cvr = cvrisk(trivDR, folds = cv(model.weights(trivDR), type = "kfold"), grid = 1:1000)
   
   StopIT = mstop(cvr)
   
@@ -80,11 +79,11 @@ sim = function(seed,n,p) {
   coef.trivDR_ow = coef(trivDR)
   
   # - Dirichlet Regression
-  # 
-  # ydr = DR_data(y.train)
-  # DR = DirichReg(ydr ~ ., data = x.train)
-  # 
-  # 
+
+  ydr = DR_data(y.train, trafo = FALSE)
+  DR = DirichReg(ydr ~ ., data = x.train)
+
+
   # - Variable Selection
   
   nameVar = names(x.train)[1:p]
@@ -139,7 +138,7 @@ sim = function(seed,n,p) {
   pred.A = cbind(pred.a1,pred.a2,pred.a3)
   pred.mu = pred.A / rowSums(pred.A)
 
-  # pred.DR = predict(DR, newdata = x.test, mu = TRUE)
+  pred.DR = predict(DR, newdata = x.test, mu = TRUE)
 
   # MSEP
 
@@ -150,13 +149,13 @@ sim = function(seed,n,p) {
   MSEPB$a2 = mean((pred.mu[,2] - y.test[,2])**2)
   MSEPB$a3 = mean((pred.mu[,3] - y.test[,3])**2)
 
-  # MSEPDR$a1 = mean((pred.DR[,1] - y.test[,1])**2)
-  # MSEPDR$a2 = mean((pred.DR[,2] - y.test[,2])**2)
-  # MSEPDR$a3 = mean((pred.DR[,3] - y.test[,3])**2)
+  MSEPDR$a1 = mean((pred.DR[,1] - y.test[,1])**2)
+  MSEPDR$a2 = mean((pred.DR[,2] - y.test[,2])**2)
+  MSEPDR$a3 = mean((pred.DR[,3] - y.test[,3])**2)
 
   # NLL
 
-  # pred.DR = predict(DR, newdata = x.test, mu = FALSE, alpha = TRUE)
+  pred.DR = predict(DR, newdata = x.test, mu = FALSE, alpha = TRUE)
 
   NLL = vector("list")
 
@@ -171,15 +170,20 @@ sim = function(seed,n,p) {
   }
 
   NLL$Boosting = sum(loss(a1 = pred.a1, a2 = pred.a2, a3 = pred.a3, y = y.test))
-  # NLL$DirichReg = sum(loss(a1 = pred.DR[,1], a2 = pred.DR[,2], a3 = pred.DR[,3], y = y.test))
+  NLL$DirichReg = sum(loss(a1 = pred.DR[,1], a2 = pred.DR[,2], a3 = pred.DR[,3], y = y.test))
 
-  return(list(TrueBeta = TrueBeta, MStop = mstop.trivDR, Coefficients = coef.trivDR_ow, Coefficients_plt = coef.trivDR,
-              Likelihood = NLL, MSEPB = MSEPB, # MSEPDR = MSEPDR,
+  return(list(TrueBeta = TrueBeta,
+              MStop = mstop.trivDR,
+              Coefficients = coef.trivDR_ow,
+              Coefficients_plt = coef.trivDR,
+              Likelihood = NLL,
+              MSEPB = MSEPB, 
+              MSEPDR = MSEPDR,
               TPR = TPR, FDR = FDR, TNR = TNR, PPV = PPV, NPV = NPV))
 }
 
 n = 150
-p = 300
+p = 10
 cur = 50
   
 set.seed(123)
@@ -189,6 +193,9 @@ seeds = sample.int(1e6, cur)
 
 # Run simulations using different seeds
 results = lapply(1:cur, function(i) sim(seed = seeds[i], n = n, p = p))
+
+# saveRDS(results, file = "300TriDir50.RData")
+# results = readRDS("49TriDir50.RData")
 
 # Performance Criteria
 
@@ -223,11 +230,11 @@ for(i in 1:cur){
 
 }
 
-colMeans(FalDis)
-colMeans(TruePos)
-colMeans(TrueNeg)
-colMeans(PosPred)
-colMeans(NegPred)
+colMeans(TruePos) * 100
+colMeans(TrueNeg) * 100
+colMeans(FalDis) * 100
+colMeans(PosPred) * 100
+colMeans(NegPred) * 100
 
 
 # Plotting estimates vs true values
@@ -296,10 +303,7 @@ ggplot(coef_melted, aes(x = variable, y = value)) +
   geom_boxplot() +
   geom_boxplot(data = true.df, aes(x = variable, y = value), color = "red") +
   facet_grid(rows = vars(model), scales = "free_y", labeller = labeller(model = custom_labels)) +
-  labs(
-    title = "",
-    y = "", x = "Variable"
-  ) +
+  labs(title = "",y = "Coefficient", x = "Variable") +
   theme_bw()
 dev.off()
 
@@ -324,7 +328,7 @@ for (i in 1:cur) {
 
 }
 
-colMeans(MSEPBoost)
-colMeans(MSEPDirig)
+sqrt(colMeans(MSEPBoost))
+sqrt(colMeans(MSEPDirig))
 
 

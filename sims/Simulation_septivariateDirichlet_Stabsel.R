@@ -6,7 +6,7 @@ library("tidyverse")
 library("forcats")
 #########################################
 
-source("families/septivariateDirichlet.R")
+source("families/Dirichlet.R")
 
 set.seed(10)
 
@@ -38,15 +38,15 @@ colnames(y.train) = c("y1","y2","y3", "y4", "y5", "y6", "y7")
 
 # For simulation study: cutoff = (0.55, 0.99), q = [15,25,50], p = [50,100,150] #
 
-septDR = glmboostLSS(y.train ~ ., data = x.train, families = DirichletSV(), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
+septDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 7), control = boost_control(trace = TRUE, mstop = 1000, nu = 0.1), method = 'noncyclic')
 
 s = stabsel(septDR, cutoff = 0.9, PFER = 5)
 
-trueVar = c("X1.alpha1" ,"X3.alpha2" ,"X5.alpha3" ,"X7.alpha4", "X9.alpha5", "X11.alpha6", "X13.alpha7",
-            "X2.alpha1" ,"X4.alpha2" ,"X6.alpha3" ,"X8.alpha4", "X10.alpha5", "X12.alpha6", "X14.alpha7")
+trueVar = c("X1.a1" ,"X3.a2" ,"X5.a3" ,"X7.a4", "X9.a5", "X11.a6", "X13.a7",
+            "X2.a1" ,"X4.a2" ,"X6.a3" ,"X8.a4", "X10.a5", "X12.a6", "X14.a7")
 
 falseVar = names(s$max)[!names(s$max) %in% trueVar]
-reInter = c("(Intercept).alpha1","(Intercept).alpha2","(Intercept).alpha3","(Intercept).alpha4","(Intercept).alpha5","(Intercept).alpha6","(Intercept).alpha7")
+reInter = c("(Intercept).a1","(Intercept).a2","(Intercept).a3","(Intercept).a4","(Intercept).a5","(Intercept).a6","(Intercept).a7")
 falseVar = falseVar[!falseVar %in% reInter]
 
 CT = seq(0.55,0.99, 0.01) 
@@ -56,21 +56,21 @@ for (i in CT) {
   
 s = stabsel(septDR, q = 15, cutoff = i)
 
-tp.a1 = length(which(trueVar %in% names(selected(s)$alpha1)))
-tp.a2 = length(which(trueVar %in% names(selected(s)$alpha2)))
-tp.a3 = length(which(trueVar %in% names(selected(s)$alpha3)))
-tp.a4 = length(which(trueVar %in% names(selected(s)$alpha4)))
-tp.a5 = length(which(trueVar %in% names(selected(s)$alpha5)))
-tp.a6 = length(which(trueVar %in% names(selected(s)$alpha6)))
-tp.a7 = length(which(trueVar %in% names(selected(s)$alpha7)))
+tp.a1 = length(which(trueVar %in% names(selected(s)$a1)))
+tp.a2 = length(which(trueVar %in% names(selected(s)$a2)))
+tp.a3 = length(which(trueVar %in% names(selected(s)$a3)))
+tp.a4 = length(which(trueVar %in% names(selected(s)$a4)))
+tp.a5 = length(which(trueVar %in% names(selected(s)$a5)))
+tp.a6 = length(which(trueVar %in% names(selected(s)$a6)))
+tp.a7 = length(which(trueVar %in% names(selected(s)$a7)))
 
-fp.a1 = length(which(falseVar %in% names(selected(s)$alpha1)))
-fp.a2 = length(which(falseVar %in% names(selected(s)$alpha2)))
-fp.a3 = length(which(falseVar %in% names(selected(s)$alpha3)))
-fp.a4 = length(which(falseVar %in% names(selected(s)$alpha4)))
-fp.a5 = length(which(falseVar %in% names(selected(s)$alpha5)))
-fp.a6 = length(which(falseVar %in% names(selected(s)$alpha6)))
-fp.a7 = length(which(falseVar %in% names(selected(s)$alpha7)))
+fp.a1 = length(which(falseVar %in% names(selected(s)$a1)))
+fp.a2 = length(which(falseVar %in% names(selected(s)$a2)))
+fp.a3 = length(which(falseVar %in% names(selected(s)$a3)))
+fp.a4 = length(which(falseVar %in% names(selected(s)$a4)))
+fp.a5 = length(which(falseVar %in% names(selected(s)$a5)))
+fp.a6 = length(which(falseVar %in% names(selected(s)$a6)))
+fp.a7 = length(which(falseVar %in% names(selected(s)$a7)))
 
 
 TP = sum(tp.a1 + tp.a2 + tp.a3 + tp.a4 + tp.a5 + tp.a6 + tp.a7)
@@ -87,10 +87,11 @@ rm(s)
 }
 
 
-results$p150q50 = df
+# results$p150q50 = df
 
-save(results, file = "BalancedStabsRes")
-load("BalancedStabsRes")
+# saveRDS(results, file = "BalancedStabsRes.RData")
+
+results = readRDS("BalancedStabsRes")
 
 ############# PLOTTING ##################
 

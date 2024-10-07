@@ -6,6 +6,8 @@ library("DirichletReg")
 library("tidyverse")
 library("reshape2")
 library("vroom")
+library("Cairo")
+library("latex2exp")
 #########################################
 
 source("families/Dirichlet.R")
@@ -36,7 +38,6 @@ sim = function(seed,n,p) {
   
   ###### data generation
   # - training data
-  
   x.train = matrix(runif(p * n, 0,1), n)
   x.train = data.frame(x.train)
   
@@ -75,9 +76,9 @@ sim = function(seed,n,p) {
   
   # - Model
   
-  septDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 7), control = boost_control(trace = TRUE, mstop = 500, nu = 0.1), method = 'noncyclic')
+  septDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 7), control = boost_control(trace = TRUE, mstop = 750, nu = 0.1), method = 'noncyclic')
   
-  cv25 = cv(model.weights(septDR), type = "kfold")
+  cv25 = cv(model.weights(septDR), type = "subsampling")
   cvr = cvrisk(septDR, folds = cv25, grid = 1:750)
   
   StopIT = mstop(cvr)
@@ -86,22 +87,22 @@ sim = function(seed,n,p) {
   
   septDR = glmboostLSS(y.train ~ ., data = x.train, families = Dirichlet(K = 7), control = boost_control(trace = TRUE, mstop = StopIT, nu = 0.1), method = 'noncyclic')
   
-  mstop.septDR <-  vector('list')
-  mstop.septDR$mstop <- StopIT
-  mstop.septDR$a1 <- septDR$a1$mstop()
-  mstop.septDR$a2 <- septDR$a2$mstop()
-  mstop.septDR$a3 <- septDR$a3$mstop()
-  mstop.septDR$a4 <- septDR$a4$mstop()
-  mstop.septDR$a5 <- septDR$a5$mstop()
-  mstop.septDR$a6 <- septDR$a6$mstop()
-  mstop.septDR$a7 <- septDR$a7$mstop()
+  mstop.septDR =  vector('list')
+  mstop.septDR$mstop = StopIT
+  mstop.septDR$a1 = septDR$a1$mstop()
+  mstop.septDR$a2 = septDR$a2$mstop()
+  mstop.septDR$a3 = septDR$a3$mstop()
+  mstop.septDR$a4 = septDR$a4$mstop()
+  mstop.septDR$a5 = septDR$a5$mstop()
+  mstop.septDR$a6 = septDR$a6$mstop()
+  mstop.septDR$a7 = septDR$a7$mstop()
   
   coef.septDR = coef(septDR, which = "")
   coef.septDR_ow = coef(septDR)
   
   # # - Dirichlet Regression
 
-  ydr = DR_data(y.train)
+  ydr = DR_data(y.train, trafo = FALSE)
   DR = DirichReg(ydr ~ ., data = x.train)
 
 
@@ -255,20 +256,32 @@ sim = function(seed,n,p) {
   NLL$DirichReg = sum(loss(a1 = pred.DR[,1], a2 = pred.DR[,2], a3 = pred.DR[,3], a4 = pred.DR[,4], a5 = pred.DR[,5], a6 = pred.DR[,6], a7 = pred.DR[,7], y = y.test))
 
   
-  return(list(TrueBeta = TrueBeta, MStop = mstop.septDR, Coefficients = coef.septDR_ow, Coefficients_plt = coef.septDR,
+  return(list(TrueBeta = TrueBeta,
+              NLL = NLL,
+              MSEPB = MSEPB,
+              MSEPDR = MSEPDR,
+              MStop = mstop.septDR,
+              Coefficients = coef.septDR_ow,
+              Coefficients_plt = coef.septDR,
               TPR = TPR, FDR = FDR, TNR = TNR, PPV = PPV, NPV = NPV))
 }
 
 
 n = 150
-p = 49
+p = 10
 cur = 50
 
-results = mclapply(1:cur, sim, n = n, p = p)
+set.seed(123)
 
-results[[10]]$MStop
+# Generate a list of reproducible seeds
+seeds = sample.int(1e6, cur)
 
-# write(results, file = "septlin")
+# Run simulations using different seeds
+results = lapply(1:cur, function(i) sim(seed = seeds[i], n = n, p = p))
+
+# saveRDS(results, file = "49Dir50.RData")
+
+# results = readRDS("49Dir50.RData")
 
 # Calculating mean TPR and FDR
 FalDis = data.frame(a1 = numeric(),
@@ -323,33 +336,13 @@ for(i in 1:cur){
   
 }
 
-colMeans(FalDis)
-colMeans(TruePos)
-colMeans(TrueNeg)
-colMeans(PosPred)
-colMeans(NegPred)
-
-# Plotting FDR and TPR
-
-TP = TP[,-1]
-FP = FP[,-1]
-
-tp <- gather(TP, key = "a", value = "TP_value")
-fp <- gather(FP, key = "a", value = "FP_value")
-
-df <- merge(tp, fp, by = c("a"))
-
-ggplot(df, aes(x = FP_value, y = TP_value)) +
-  geom_point() +
-  facet_grid(cols = vars(a)) +
-  ylim(0,1) +
-  xlim(0,1) +
-  labs(x = "FDR", y = "TPR") +
-  theme_light()
-
+colMeans(TruePos) * 100
+colMeans(TrueNeg) * 100
+colMeans(FalDis) * 100
+colMeans(PosPred) * 100
+colMeans(NegPred) * 100
 
 # Plotting estimates vs true values
-
 a1 = data.frame(x1 = numeric(),
                 x2 = numeric(),
                 x3 = numeric(),
@@ -448,24 +441,34 @@ coeflist$a5 = a5
 coeflist$a6 = a6
 coeflist$a7 = a7
 
-coef_df <- do.call(rbind, lapply(coeflist, as.data.frame))
+coef_df = do.call(rbind, lapply(coeflist, as.data.frame))
 
 coef_df$model = rep(names(coeflist), each = nrow(coef_df)/length(coeflist))
+coef_df = coef_df[,c(1:4,11)]
 coef_melted = melt(coef_df, id.vars = "model")
 
 TBet = data.frame(results[[1]]$TrueBeta)
-TBet = TBet[1:10,]
-TBet$variable = unique(coef_melted$variable)
+TBet = TBet[1:4,]
+TBet$variable = unique(coef_melted$variable)[1:4]
 true.df = gather(TBet, model, value, -variable)
 
+custom_labels = c(a1 = "\u03b11",  
+                  a2 = "\u03b12",  
+                  a3 = "\u03b13",
+                  a4 = "\u03b14",
+                  a5 = "\u03b15",
+                  a6 = "\u03b16",
+                  a7 = "\u03b17")
+
+CairoPDF("test.pdf", width = 9, height = 5)
 ggplot(coef_melted, aes(x = variable, y = value)) + 
   geom_boxplot() +
-  #geom_point(data = true.df, aes(x = variable, y = value), color = "red", size = 2.5) +
   geom_boxplot(data = true.df, aes(x = variable, y = value), color = "red") +
-  facet_grid(rows = vars(model), scales = "free_y") +
-  ylab("") +
-  theme_light() +
-  theme(strip.text = element_text(color = "black"))
+  facet_wrap(~ model, scales = "free_y", labeller = labeller(model = custom_labels), nrow = 4) +
+  labs(title = "", y = "Coefficient", x = "Variable") +
+  scale_x_discrete(labels = function(x) ifelse(x == "x4", TeX("x\\{4,...,P\\}"), x)) +
+  theme_bw()
+dev.off()
 
 
 # Predictive Performance
@@ -473,7 +476,7 @@ ggplot(coef_melted, aes(x = variable, y = value)) +
 NLL = data.frame(Boosting = numeric(), DirichReg = numeric())
 
 for (i in 1:cur) {
-  NLL[i,] = unlist(results[[i]]$Likelihood, use.names = TRUE)
+  NLL[i,] = unlist(results[[i]]$NLL, use.names = TRUE)
 }
 
 colMeans(NLL)
@@ -487,7 +490,8 @@ for (i in 1:cur) {
   
 }
 
-colMeans(MSEPBoost)
-colMeans(MSEPDirig)
+sqrt(colMeans(MSEPBoost))
+sqrt(colMeans(MSEPDirig))
+
 
 
