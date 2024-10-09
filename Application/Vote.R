@@ -191,27 +191,56 @@ ggplot(pred_df, aes(x = TrueProtest, y = Proportion)) +
 
 ############ Plotting Proportions
 
-#plotting proportions against protests
-
-plot(rep(datn$Protests, 7),
-     as.numeric(Vote),
-     pch = 21,
-     bg = rep(c("red", "black", "yellow", "green", "darkorchid4","blue","darkgrey"), each = 39),
-     xlab = "Protests", ylab = "Proportion", ylim = 0:1)
-
-#plotting the proportions in singular plots
-
-par(mfrow = c(2,4))
-
-for (i in 1:7){
-plot(datn$Protests,
-     as.numeric(Vote[,i]),
-     pch = 21,
-     main = as.character(i),
-     xlab = "Protests",
-     ylab = "Proportion",
-     ylim = 0:1)
-}
+# Plotting Proportions against year for any country of choice via country_iso == ""
+# 
+# pres = data %>% filter(country_iso == "GR")
+# pres = pres %>%
+#   mutate(parfam = recode(parfam,
+#                          `1` = "Social democratic",
+#                          `2` = "Conservative / Christian democratic",
+#                          `3` = "Liberals",
+#                          `4` = "Greens",
+#                          `5` = "Radical left",
+#                          `6` = "Radical populist right",
+#                          `7` = "Others"))
+# 
+# pres = pres %>%
+#   mutate(parfam = factor(parfam, levels = c("Social democratic",
+#                                             "Conservative / Christian democratic",
+#                                             "Liberals",
+#                                             "Greens",
+#                                             "Radical left",
+#                                             "Radical populist right",
+#                                             "Others")))
+# 
+# pres = pres %>% select(c("parfam", "year_t", "wevent", "t_vote"))
+# pres = pres %>% 
+#   group_by(parfam, year_t) %>%
+#   summarise(t_vote = sum(t_vote, na.rm = TRUE) / 100, wevent = first(wevent))
+#  
+# ggplot(pres, aes(x = year_t, y = t_vote, color = factor(parfam), group = parfam)) +
+#   geom_line(size = 1) +     
+#   geom_point(size = 2) +     
+#   labs(x = "Year", y = "Voting proportions", color = "Party family") + 
+#   theme_bw() +          
+#   scale_x_continuous(breaks =  seq(min(test$year_t), max(test$year_t), by = 1)) +      
+#   theme(legend.position = "bottom")+  
+#   annotate("rect", xmin = 2009, xmax = 2012, ymin = -Inf, ymax = Inf, alpha = 0.2, fill = "grey") +
+#   annotate("text", x = 2010.5, y = max(test$t_vote), label = "1043 Protests", size = 4, vjust = 0.5, color = "black")
+# 
+#                       
+# 
+# par(mfrow = c(2,4))
+# 
+# for (i in 1:7){
+# plot(datn$Protests,
+#      as.numeric(Vote[,i]),
+#      pch = 21,
+#      main = as.character(i),
+#      xlab = "Protests",
+#      ylab = "Proportion",
+#      ylim = 0:1)
+# }
 
 
 
